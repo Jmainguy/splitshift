@@ -49,7 +49,8 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 
 	var monthlyTotal float64
 	var monthlyHours float64
-	timeRegex, err := regexp.Compile("[0-1][0-9]:[0-5][0-9]")
+	//timeRegex, err := regexp.Compile(`^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$`)
+	timeRegex, err := regexp.Compile(`((1[0-2]|0?[1-9]):([0-5][0-9]) ?([AaPp][Mm]))`)
 	if err != nil {
 		return []string{}, err
 	}
@@ -78,6 +79,7 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 					return []string{}, err
 				}
 				rateString = strings.Trim(rateString, "$")
+				rateString = strings.Replace(rateString, " ", "", -1)
 				shift.Rate, err = strconv.ParseFloat(rateString, 32)
 				if err != nil {
 					return []string{}, err
@@ -114,17 +116,24 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 					shiftTwoTotal := endTime * shift.Rate * shift.Multiplier
 					// Sanity Check, hours and total should match
 					bothShiftHours := shiftOneHours + endTime
-					//bothShiftTotals := shiftOneTotal + shiftTwoTotal
 
 					bothShiftHoursString := fmt.Sprintf("%.2f", bothShiftHours)
-					if bothShiftHoursString != line[6] {
-						return []string{}, fmt.Errorf("Hours did not match, %v and %v, Line in question is %v", bothShiftHoursString, line[11], line)
-					}
-					shiftOneDate, err := time.Parse("01/02/2006", shift.Date)
-					shiftTwoDate := shiftOneDate.AddDate(0, 0, 1)
+					generationHours, err := strconv.ParseFloat(line[6], 32)
 					if err != nil {
 						return []string{}, err
 					}
+
+					if bothShiftHoursString != fmt.Sprintf("%.2f", generationHours) {
+						return []string{}, fmt.Errorf("Hours did not match, %v and %v, Line in question is %v", bothShiftHoursString, fmt.Sprintf("%.2f", generationHours), line)
+					}
+					shiftOneDate, err := time.Parse("01/02/2006", shift.Date)
+					if err != nil {
+						shiftOneDate, err = time.Parse("01/2/2006", shift.Date)
+						if err != nil {
+							return []string{}, err
+						}
+					}
+					shiftTwoDate := shiftOneDate.AddDate(0, 0, 1)
 
 					// Payoff
 					resultLine := fmt.Sprintf("AideName: %v, Date: %v, Start: %v, End: %v, Hours: %.2f, Rate: $%.2f, Total: $%.2f\n", shift.AideName, shiftOneDate.Format("01/02/2006"), shift.StartTime, "11:59 PM", shiftOneHours, shift.Rate, shiftOneTotal)
