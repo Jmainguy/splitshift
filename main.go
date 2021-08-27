@@ -49,7 +49,7 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 
 	var monthlyTotal float64
 	var monthlyHours float64
-	timeRegex, err := regexp.Compile("[01][0-9]:[01][0-9]")
+	timeRegex, err := regexp.Compile("[0-1][0-9]:[0-5][0-9]")
 	if err != nil {
 		return []string{}, err
 	}
@@ -82,7 +82,11 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 				if err != nil {
 					return []string{}, err
 				}
-				shift.Amount = shift.Rate * shift.Hours
+				shift.Multiplier, err = strconv.ParseFloat(line[10], 32)
+				if err != nil {
+					return []string{}, err
+				}
+				shift.Amount = shift.Rate * shift.Hours * shift.Multiplier
 				// Add to monthly totals
 				monthlyTotal = monthlyTotal + shift.Amount
 				monthlyHours = monthlyHours + shift.Hours
@@ -106,22 +110,16 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 					}
 
 					shiftOneHours := shift.Hours - endTime
-					shiftOneTotal := shiftOneHours * shift.Rate
-					shiftTwoTotal := endTime * shift.Rate
+					shiftOneTotal := shiftOneHours * shift.Rate * shift.Multiplier
+					shiftTwoTotal := endTime * shift.Rate * shift.Multiplier
 					// Sanity Check, hours and total should match
 					bothShiftHours := shiftOneHours + endTime
-					bothShiftTotals := shiftOneTotal + shiftTwoTotal
+					//bothShiftTotals := shiftOneTotal + shiftTwoTotal
 
 					bothShiftHoursString := fmt.Sprintf("%.2f", bothShiftHours)
-					bothShiftTotalsString := fmt.Sprintf("$%.2f", bothShiftTotals)
 					if bothShiftHoursString != line[6] {
 						return []string{}, fmt.Errorf("Hours did not match, %v and %v, Line in question is %v", bothShiftHoursString, line[11], line)
 					}
-					if bothShiftTotalsString != line[11] {
-						fmt.Println(line)
-						return []string{}, fmt.Errorf("Totals did not match, %v and %v, Line in question is %v", bothShiftTotalsString, line[11], line)
-					}
-					// Add +1 to date
 					shiftOneDate, err := time.Parse("01/02/2006", shift.Date)
 					shiftTwoDate := shiftOneDate.AddDate(0, 0, 1)
 					if err != nil {
@@ -137,8 +135,8 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 			}
 		}
 	}
-	totals := fmt.Sprintf("Total Hours: %.2f, Total Amount $%.2f\n", monthlyHours, monthlyTotal)
-	fmt.Printf(totals)
+	totals := fmt.Sprintf("Total Hours: %.2f, Total Amount $%.2f", monthlyHours, monthlyTotal)
+	fmt.Println(totals)
 	resultLines = append(resultLines, totals)
 
 	return resultLines, err
