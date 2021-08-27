@@ -115,10 +115,11 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 					bothShiftHoursString := fmt.Sprintf("%.2f", bothShiftHours)
 					bothShiftTotalsString := fmt.Sprintf("$%.2f", bothShiftTotals)
 					if bothShiftHoursString != line[6] {
-						return []string{}, fmt.Errorf("Hours did not match, %v and %v", bothShiftHoursString, line[11])
+						return []string{}, fmt.Errorf("Hours did not match, %v and %v, Line in question is %v", bothShiftHoursString, line[11], line)
 					}
 					if bothShiftTotalsString != line[11] {
-						return []string{}, fmt.Errorf("Totals did not match, %v and %v", bothShiftTotalsString, line[11])
+						fmt.Println(line)
+						return []string{}, fmt.Errorf("Totals did not match, %v and %v, Line in question is %v", bothShiftTotalsString, line[11], line)
 					}
 					// Add +1 to date
 					shiftOneDate, err := time.Parse("01/02/2006", shift.Date)
@@ -136,7 +137,9 @@ func processFile(f multipart.File) (resultLines []string, err error) {
 			}
 		}
 	}
-	fmt.Printf("Total Hours: %.2f, Total Amount $%.2f\n", monthlyHours, monthlyTotal)
+	totals := fmt.Sprintf("Total Hours: %.2f, Total Amount $%.2f\n", monthlyHours, monthlyTotal)
+	fmt.Printf(totals)
+	resultLines = append(resultLines, totals)
 
 	return resultLines, err
 }
